@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ad Image Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .canvas-container {
+            margin-bottom: 30px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background: #0056b3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        canvas {
+            border: 1px solid #ccc;
+            max-width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Ad Image Generator</h1>
+    <p>Click the buttons below to download ad images for different placements and sizes.</p>
+
+    <div class="canvas-container">
+        <h2>Hero Banner (Large: 970x250)</h2>
+        <canvas id="heroLarge" width="970" height="250"></canvas>
+        <div>
+            <button onclick="downloadImage('heroLarge', 'hero-large.jpg')">Download</button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <h2>In-Feed Banner (Medium: 728x90)</h2>
+        <canvas id="inFeedMedium" width="728" height="90"></canvas>
+        <div>
+            <button onclick="downloadImage('inFeedMedium', 'in-feed-medium.jpg')">Download</button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <h2>Sidebar Banner (Large: 300x600)</h2>
+        <canvas id="sidebarLarge" width="300" height="600"></canvas>
+        <div>
+            <button onclick="downloadImage('sidebarLarge', 'sidebar-large.jpg')">Download</button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <h2>Sidebar Banner (Medium: 300x250)</h2>
+        <canvas id="sidebarMedium" width="300" height="250"></canvas>
+        <div>
+            <button onclick="downloadImage('sidebarMedium', 'sidebar-medium.jpg')">Download</button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <h2>Sidebar Banner (Small: 300x100)</h2>
+        <canvas id="sidebarSmall" width="300" height="100"></canvas>
+        <div>
+            <button onclick="downloadImage('sidebarSmall', 'sidebar-small.jpg')">Download</button>
+        </div>
+    </div>
+
+    <script>
+        // Colors for different ad types
+        const adColors = {
+            hero: {
+                bg: '#0056b3',
+                text: '#ffffff'
+            },
+            inFeed: {
+                bg: '#ff6600',
+                text: '#ffffff'
+            },
+            sidebar: {
+                bg: '#333333',
+                text: '#ffffff'
+            }
+        };
+
+        // Draw the ad on the canvas
+        function drawAd(canvasId, type, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            // Fill background
+            const gradient = ctx.createLinearGradient(0, 0, width, height);
+            gradient.addColorStop(0, adColors[type].bg);
+            gradient.addColorStop(1, lightenColor(adColors[type].bg, 30));
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // Draw border
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(5, 5, width - 10, height - 10);
+
+            // Draw text
+            ctx.fillStyle = adColors[type].text;
+            const fontSize = Math.min(width, height) * 0.1;
+            ctx.font = `bold ${fontSize}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // Main text
+            const adText = `โฆษณา - ${type.toUpperCase()}`;
+            ctx.fillText(adText, width / 2, height / 2 - fontSize / 2);
+
+            // Size text
+            ctx.font = `${fontSize * 0.7}px Arial`;
+            ctx.fillText(`${size.toUpperCase()} (${width}x${height})`, width / 2, height / 2 + fontSize);
+
+            // Add some decoration
+            drawDecorations(ctx, width, height, type);
+        }
+
+        // Draw decorative elements
+        function drawDecorations(ctx, width, height, type) {
+            // Draw circles in corners
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            const radius = Math.min(width, height) * 0.15;
+
+            // Top left circle
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Bottom right circle
+            ctx.beginPath();
+            ctx.arc(width, height, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Thai football elements
+            if (type === 'hero' || height > 200) {
+                // Draw a simplified soccer ball
+                const ballRadius = Math.min(width, height) * 0.1;
+                const ballX = width * 0.8;
+                const ballY = height * 0.2;
+
+                // White ball
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Black pentagonal pattern (simplified)
+                ctx.fillStyle = '#000000';
+                for (let i = 0; i < 5; i++) {
+                    const angle = i * Math.PI * 2 / 5;
+                    const x = ballX + Math.cos(angle) * ballRadius * 0.7;
+                    const y = ballY + Math.sin(angle) * ballRadius * 0.7;
+
+                    ctx.beginPath();
+                    ctx.arc(x, y, ballRadius * 0.3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        // Function to lighten a color
+        function lightenColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+
+            return `#${(
+        0x1000000 +
+        (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+        (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+        (B < 255 ? (B < 1 ? 0 : B) : 255)
+      ).toString(16).slice(1)}`;
+        }
+
+        // Function to download the canvas as an image
+        function downloadImage(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        }
+
+        // Initialize all canvases
+        window.onload = function() {
+            drawAd('heroLarge', 'hero', 'large');
+            drawAd('inFeedMedium', 'inFeed', 'medium');
+            drawAd('sidebarLarge', 'sidebar', 'large');
+            drawAd('sidebarMedium', 'sidebar', 'medium');
+            drawAd('sidebarSmall', 'sidebar', 'small');
+        };
+    </script>
+</body>
+
+</html>
