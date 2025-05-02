@@ -1,0 +1,11 @@
+{
+    "name": "livescore-api-test",
+    "version": "1.0.0",
+    "description": "API testing interface for LiveScore project",
+    "main": "index.html",
+    "scripts": {
+        "start": "open index.html"
+    },
+    "author": "",
+    "license": "ISC"
+}

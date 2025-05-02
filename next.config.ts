@@ -5,6 +5,28 @@ const nextConfig: NextConfig = {
     API_KEY: process.env.API_KEY,
     API_HOST: process.env.API_HOST,
   },
+  images: {
+    domains: [
+      'media-4.api-sports.io',
+      'media.api-sports.io',
+      'media-1.api-sports.io',
+      'media-2.api-sports.io',
+      'media-3.api-sports.io',
+      'api.sofascore.app',
+      'www.sofascore.com',
+      'upload.wikimedia.org',
+      'images.sofascore.app',
+      'e0.365dm.com',
+      'livescore-api.com',
+      'www.livescore.com'
+    ],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      }
+    ]
+  },
   async headers() {
     return [
       {

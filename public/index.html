@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveScore API Test Page</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <h1>LiveScore API Test Console</h1>
+
+        <div class="info-panel">
+            <h2>Environment Info</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong>Production Mode:</strong>
+                    <span id="productionMode">Yes</span>
+                </div>
+                <div class="info-item">
+                    <strong>API URL:</strong>
+                    <span id="apiUrl">/api/proxy (server-side proxy)</span>
+                </div>
+                <div class="info-item">
+                    <strong>API Key Present:</strong>
+                    <span id="apiKeyPresent">Yes</span>
+                </div>
+                <div class="info-item">
+                    <strong>Current Hostname:</strong>
+                    <span id="currentHostname">live-score-pink.vercel.app</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <h2>API Test Controls</h2>
+            <div class="button-group">
+                <button id="testStatus" class="btn primary">Test Status API</button>
+                <button id="testLive" class="btn success">Test Live Matches</button>
+                <button id="testLeagues" class="btn info">Test Leagues</button>
+            </div>
+
+            <div class="custom-section">
+                <h3>Custom API Request</h3>
+                <div class="input-group">
+                    <select id="endpointSelect">
+                        <option value="status">Status</option>
+                        <option value="countries">Countries</option>
+                        <option value="leagues">Leagues</option>
+                        <option value="fixtures?live=all">Live Fixtures</option>
+                        <option value="teams">Teams</option>
+                        <option value="standings">Standings</option>
+                        <option value="players">Players</option>
+                        <option value="timezone">Timezones</option>
+                        <option value="custom">Custom Endpoint...</option>
+                    </select>
+                    <input type="text" id="customEndpoint" placeholder="Enter custom endpoint" style="display: none;">
+                </div>
+
+                <div id="paramSection" class="param-section" style="display: none;">
+                    <h4>Parameters</h4>
+                    <div id="params"></div>
+                    <button id="addParam" class="btn secondary small">+ Add Parameter</button>
+                </div>
+
+                <button id="executeRequest" class="btn primary">Execute Request</button>
+            </div>
+        </div>
+
+        <div id="loaderContainer" class="loader-container" style="display: none;">
+            <div class="loader"></div>
+            <p>Processing request...</p>
+        </div>
+
+        <div id="errorDisplay" class="error-display" style="display: none;"></div>
+
+        <div class="results-section">
+            <div id="statusResult" class="result-panel" style="display: none;">
+                <h3>Status API Result</h3>
+                <div class="result-content">
+                    <pre id="statusContent"></pre>
+                </div>
+            </div>
+
+            <div id="liveResult" class="result-panel" style="display: none;">
+                <h3>Live Matches Result</h3>
+                <p id="liveMatchCount"></p>
+                <div class="result-content">
+                    <pre id="liveContent"></pre>
+                </div>
+            </div>
+
+            <div id="leaguesResult" class="result-panel" style="display: none;">
+                <h3>Leagues Result</h3>
+                <p id="leagueCount"></p>
+                <div class="result-content">
+                    <pre id="leaguesContent"></pre>
+                </div>
+            </div>
+
+            <div id="customResult" class="result-panel" style="display: none;">
+                <h3>Custom Request Result</h3>
+                <div class="result-content">
+                    <pre id="customContent"></pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>API Troubleshooting Tips</h3>
+            <ul>
+                <li>Verify your API key is correctly set in environment variables</li>
+                <li>Check for rate-limiting issues (daily and per-minute limits)</li>
+                <li>Ensure the host domain is authorized with API-Sports</li>
+                <li>For local development, make sure .env.local file is properly configured</li>
+                <li>Use browser developer tools to inspect network requests and responses</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const productionMode = true;
+        const apiUrl = '/api/proxy'; // Server-side proxy URL
+        const hasApiKey = true;
+        const currentHostname = window.location.hostname || 'live-score-pink.vercel.app';
+
+        // Update environment info on page load
+        document.getElementById('productionMode').textContent = productionMode ? 'Yes' : 'No';
+        document.getElementById('apiUrl').textContent = apiUrl + (productionMode ? ' (server-side proxy)' : '');
+        document.getElementById('apiKeyPresent').textContent = hasApiKey ? 'Yes' : 'No';
+        document.getElementById('currentHostname').textContent = currentHostname;
+
+        // Helper function to make API requests
+        async function fetchAPI(endpoint, params = {}) {
+            showLoader();
+            hideAllResults();
+            hideError();
+
+            try {
+                // Create URL with parameters
+                const queryParams = new URLSearchParams();
+
+                // Add endpoint parameter for the server-side proxy
+                queryParams.append('endpoint', endpoint);
+
+                // Add any additional parameters
+                Object.entries(params).forEach(([key, value]) => {
+                    queryParams.append(key, value);
+                });
+
+                const url = `${apiUrl}?${queryParams.toString()}`;
+                console.log('Making request to:', url);
+
+                const response = await fetch(url);
+
+                // Log rate limit info if available
+                if (response.headers) {
+                    console.log('Rate Limit Headers:');
+                    console.log('Daily limit:', response.headers.get('x-ratelimit-requests-limit'));
+                    console.log('Daily remaining:', response.headers.get('x-ratelimit-requests-remaining'));
+                }
+
+                if (!response.ok) {
+                    throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                showError(error.message);
+                throw error;
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // Test Status API
+        document.getElementById('testStatus').addEventListener('click', async() => {
+            try {
+                const data = await fetchAPI('status');
+                displayStatusResult(data);
+            } catch (error) {
+                console.error('Status API Error:', error);
+            }
+        });
+
+        // Test Live Matches
+        document.getElementById('testLive').addEventListener('click', async() => {
+            try {
+                const data = await fetchAPI('fixtures', {
+                    live: 'all'
+                });
+                displayLiveResult(data);
+            } catch (error) {
+                console.error('Live Matches API Error:', error);
+            }
+        });
+
+        // Test Leagues
+        document.getElementById('testLeagues').addEventListener('click', async() => {
+            try {
+                const data = await fetchAPI('leagues');
+                displayLeaguesResult(data);
+            } catch (error) {
+                console.error('Leagues API Error:', error);
+            }
+        });
+
+        // Custom endpoint dropdown change
+        document.getElementById('endpointSelect').addEventListener('change', function() {
+            const customInput = document.getElementById('customEndpoint');
+            const paramSection = document.getElementById('paramSection');
+
+            if (this.value === 'custom') {
+                customInput.style.display = 'block';
+                customInput.focus();
+            } else {
+                customInput.style.display = 'none';
+            }
+
+            // Show param section for specific endpoints
+            if (['leagues', 'teams', 'fixtures', 'standings', 'players', 'custom'].includes(this.value)) {
+                paramSection.style.display = 'block';
+                populateDefaultParams(this.value);
+            } else {
+                paramSection.style.display = 'none';
+            }
+        });
+
+        // Populate default parameters based on endpoint
+        function populateDefaultParams(endpoint) {
+            const paramsContainer = document.getElementById('params');
+            paramsContainer.innerHTML = '';
+
+            switch (endpoint) {
+                case 'leagues':
+                    addParamField('country', 'England');
+                    addParamField('season', '2024');
+                    break;
+                case 'teams':
+                    addParamField('league', '39');
+                    addParamField('season', '2024');
+                    break;
+                case 'fixtures':
+                    addParamField('date', new Date().toISOString().slice(0, 10));
+                    break;
+                case 'standings':
+                    addParamField('league', '39');
+                    addParamField('season', '2024');
+                    break;
+                case 'players':
+                    addParamField('team', '33');
+                    addParamField('season', '2024');
+                    break;
+            }
+        }
+
+        // Add parameter button
+        document.getElementById('addParam').addEventListener('click', () => {
+            addParamField('', '');
+        });
+
+        // Add parameter field
+        function addParamField(key, value) {
+            const paramsContainer = document.getElementById('params');
+            const paramRow = document.createElement('div');
+            paramRow.className = 'param-row';
+
+            const keyInput = document.createElement('input');
+            keyInput.type = 'text';
+            keyInput.className = 'param-key';
+            keyInput.placeholder = 'Parameter name';
+            keyInput.value = key;
+
+            const valueInput = document.createElement('input');
+            valueInput.type = 'text';
+            valueInput.className = 'param-value';
+            valueInput.placeholder = 'Parameter value';
+            valueInput.value = value;
+
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'btn danger small';
+            removeBtn.textContent = 'Remove';
+            removeBtn.onclick = function() {
+                paramsContainer.removeChild(paramRow);
+            };
+
+            paramRow.appendChild(keyInput);
+            paramRow.appendChild(valueInput);
+            paramRow.appendChild(removeBtn);
+            paramsContainer.appendChild(paramRow);
+        }
+
+        // Execute custom request
+        document.getElementById('executeRequest').addEventListener('click', async() => {
+            try {
+                let endpoint;
+                const selected = document.getElementById('endpointSelect').value;
+
+                if (selected === 'custom') {
+                    endpoint = document.getElementById('customEndpoint').value.trim();
+                    if (!endpoint) {
+                        showError('Please enter a custom endpoint');
+                        return;
+                    }
+                } else {
+                    endpoint = selected;
+                }
+
+                // Get parameters
+                const params = {};
+                const paramRows = document.querySelectorAll('.param-row');
+
+                paramRows.forEach(row => {
+                    const key = row.querySelector('.param-key').value.trim();
+                    const value = row.querySelector('.param-value').value.trim();
+
+                    if (key && value) {
+                        params[key] = value;
+                    }
+                });
+
+                const data = await fetchAPI(endpoint, params);
+                displayCustomResult(data);
+            } catch (error) {
+                console.error('Custom API Error:', error);
+            }
+        });
+
+        // Display functions
+        function displayStatusResult(data) {
+            const resultContainer = document.getElementById('statusResult');
+            const resultContent = document.getElementById('statusContent');
+
+            resultContent.textContent = JSON.stringify(data, null, 2);
+            resultContainer.style.display = 'block';
+
+            // Scroll to result
+            resultContainer.scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+
+        function displayLiveResult(data) {
+            const resultContainer = document.getElementById('liveResult');
+            const resultContent = document.getElementById('liveContent');
+            const countElement = document.getElementById('liveMatchCount');
+
+            resultContent.textContent = JSON.stringify(data, null, 2);
+            countElement.textContent = `Found ${data.results || 0} live matches`;
+            resultContainer.style.display = 'block';
+
+            // Scroll to result
+            resultContainer.scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+
+        function displayLeaguesResult(data) {
+            const resultContainer = document.getElementById('leaguesResult');
+            const resultContent = document.getElementById('leaguesContent');
+            const countElement = document.getElementById('leagueCount');
+
+            resultContent.textContent = JSON.stringify(data, null, 2);
+            countElement.textContent = `Found ${data.results || 0} leagues`;
+            resultContainer.style.display = 'block';
+
+            // Scroll to result
+            resultContainer.scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+
+        function displayCustomResult(data) {
+            const resultContainer = document.getElementById('customResult');
+            const resultContent = document.getElementById('customContent');
+
+            resultContent.textContent = JSON.stringify(data, null, 2);
+            resultContainer.style.display = 'block';
+
+            // Scroll to result
+            resultContainer.scrollIntoView({
+                behavior: 'smooth'
+            });
+        }
+
+        // Helper functions
+        function showLoader() {
+            document.getElementById('loaderContainer').style.display = 'flex';
+        }
+
+        function hideLoader() {
+            document.getElementById('loaderContainer').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorDisplay = document.getElementById('errorDisplay');
+            errorDisplay.textContent = message;
+            errorDisplay.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorDisplay').style.display = 'none';
+        }
+
+        function hideAllResults() {
+            document.getElementById('statusResult').style.display = 'none';
+            document.getElementById('liveResult').style.display = 'none';
+            document.getElementById('leaguesResult').style.display = 'none';
+            document.getElementById('customResult').style.display = 'none';
+        }
+
+        // Auto-run Status API test on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('testStatus').click();
+        });
+    </script>
+</body>
+
+</html>

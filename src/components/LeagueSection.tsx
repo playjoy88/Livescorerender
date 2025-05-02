@@ -85,38 +85,56 @@ const LeagueSection: React.FC<LeagueSectionProps> = ({
   
   return (
     <div className="mb-10 border border-border-color rounded-xl overflow-hidden shadow-sm">
-      {/* League header */}
-      <div className="flex items-center justify-between p-4 bg-primary-color bg-opacity-10 border-b border-border-color">
-        <div className="flex items-center">
-          <img 
-            src={league.logo} 
-            alt={league.name}
-            className="w-6 h-6 mr-2" 
-          />
-          <h2 className="text-lg font-bold" style={{ fontFamily: 'var(--font-prompt)' }}>
-            {league.name} {league.country && `(${league.country})`}
-          </h2>
-        </div>
-        {showMoreButton && (
-          <button 
-            className="text-primary-color hover:text-secondary-color text-sm flex items-center"
-            onClick={toggleExpand}
-          >
-            {isExpanded ? 'แสดงน้อยลง' : 'แสดงเพิ่มเติม'}
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className={`h-4 w-4 ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
-              viewBox="0 0 20 20" 
-              fill="currentColor"
+      {/* League header - improved layout with more prominence */}
+      <div className="bg-primary-color bg-opacity-10 border-b border-border-color">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center">
+            {league.logo && (
+              <div className="flex-shrink-0 mr-3">
+                <img 
+                  src={league.logo} 
+                  alt={league.name || 'League logo'}
+                  className="w-7 h-7 object-contain" 
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = 'https://media.api-sports.io/football/leagues/0.png'; // Default image on error
+                  }}
+                />
+              </div>
+            )}
+            <div>
+              <h2 className="text-lg font-bold leading-tight" style={{ fontFamily: 'var(--font-prompt)' }}>
+                {league.name || 'ลีกไม่ระบุชื่อ'}
+              </h2>
+              {league.country && (
+                <div className="text-xs text-primary-color opacity-75 mt-0.5">
+                  {league.country}
+                </div>
+              )}
+            </div>
+          </div>
+          {showMoreButton && (
+            <button 
+              className="text-primary-color hover:text-secondary-color text-sm flex items-center font-medium"
+              onClick={toggleExpand}
             >
-              <path 
-                fillRule="evenodd" 
-                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
-                clipRule="evenodd" 
-              />
-            </svg>
-          </button>
-        )}
+              {isExpanded ? 'แสดงน้อยลง' : 'แสดงเพิ่มเติม'}
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className={`h-4 w-4 ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path 
+                  fillRule="evenodd" 
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" 
+                  clipRule="evenodd" 
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
       
       {/* Matches */}

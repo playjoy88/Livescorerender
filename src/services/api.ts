@@ -3,9 +3,14 @@
  * Handles all requests to the football API
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api-football-v1.p.rapidapi.com/v3';
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
-const API_HOST = process.env.NEXT_PUBLIC_API_HOST || 'api-football-v1.p.rapidapi.com';
+// Always use the server-side proxy for production
+// In development, we still offer flexibility with environment variables
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Always use proxy endpoint in production for security
+const API_URL = isProduction 
+  ? '/api/proxy' // Server-side proxy (secure - keeps API key on server)
+  : process.env.NEXT_PUBLIC_API_URL || '/api/proxy'; // Default to proxy even in development
 
 // Cache storage for API responses
 interface ApiResponse {
@@ -38,7 +43,16 @@ export async function fetchFromApi({ endpoint, params = {}, cacheDuration = CACH
     queryParams.append(key, String(value));
   });
   
-  const url = `${API_URL}/${endpoint}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  // For production, use the proxy differently with endpoint as a parameter
+  let url;
+  if (isProduction) {
+    // Pass endpoint as a query parameter to the proxy
+    queryParams.append('endpoint', endpoint);
+    url = `${API_URL}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  } else {
+    // For direct API access, append the endpoint to the URL
+    url = `${API_URL}/${endpoint}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+  }
   
   // Check cache first
   const cacheKey = url;
@@ -50,12 +64,18 @@ export async function fetchFromApi({ endpoint, params = {}, cacheDuration = CACH
   
   // Make the API request
   try {
-    const response = await fetch(url, {
-      headers: {
-        'x-rapidapi-key': API_KEY,
-        'x-rapidapi-host': API_HOST
-      }
-    });
+    // No need to pass API key in headers - proxy handles this securely
+    console.log('Fetching URL:', url); // Debug log
+    
+    const response = await fetch(url);
+    
+    // Log rate limit headers for debugging
+    if (response.headers) {
+      console.log('Daily limit:', response.headers.get('x-ratelimit-requests-limit'));
+      console.log('Daily remaining:', response.headers.get('x-ratelimit-requests-remaining'));
+      console.log('Minute limit:', response.headers.get('X-RateLimit-Limit'));
+      console.log('Minute remaining:', response.headers.get('X-RateLimit-Remaining'));
+    }
     
     if (!response.ok) {
       throw new Error(`API request failed with status ${response.status}`);
@@ -135,6 +155,16 @@ export async function getFixtureEvents(fixtureId: number) {
 export async function getFixtureLineups(fixtureId: number) {
   return fetchFromApi({
     endpoint: `fixtures/lineups`,
+    params: { fixture: fixtureId }
+  });
+}
+
+/**
+ * Gets fixture predictions
+ */
+export async function getFixturePredictions(fixtureId: number) {
+  return fetchFromApi({
+    endpoint: `predictions`,
     params: { fixture: fixtureId }
   });
 }
