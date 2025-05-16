@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useTheme } from '../context/ThemeContext';
+import Logo from './Logo';
 
 const Navbar = () => {
   const { theme, toggleTheme } = useTheme();
@@ -9,12 +10,7 @@ const Navbar = () => {
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center">
-            <h1 className="text-primary-color text-2xl font-bold" style={{ fontFamily: 'var(--font-prompt)' }}>
-              <span className="text-accent-color">Play</span>joy
-            </h1>
-            <span className="ml-2 text-sm text-text-light">Livescore</span>
-          </div>
+          <Logo />
           
           {/* Main Navigation */}
           <nav className="hidden md:flex space-x-6">

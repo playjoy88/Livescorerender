@@ -5,7 +5,8 @@ import Image from 'next/image';
 import Layout from '../../components/Layout';
 import MatchCard from '../../components/MatchCard';
 import LiveMatchWithStats from '../../components/LiveMatchWithStats';
-import { getFixturesByDate, LEAGUE_IDS } from '../../services/api';
+import Banner from '../../components/Banner';
+import { fetchFromApi, getFixturesByDate, LEAGUE_IDS } from '../../services/api';
 
 // Interface for match data
 interface Team {
@@ -71,7 +72,9 @@ interface ApiFixture {
   };
 }
 
+// Next.js page component
 export default function FixturesPage() {
+  // We don't need the page params for this component
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [filterLeague, setFilterLeague] = useState<string>('all');
   const [fixtures, setFixtures] = useState<Match[]>([]);
@@ -186,19 +189,54 @@ export default function FixturesPage() {
     return grouped;
   };
   
-  // Fetch fixtures for the selected date
+  // Define popular leagues to load initially
+  const popularLeagueIds = [
+    LEAGUE_IDS.THAI_LEAGUE,
+    LEAGUE_IDS.PREMIER_LEAGUE,
+    LEAGUE_IDS.LA_LIGA,
+    LEAGUE_IDS.BUNDESLIGA,
+    LEAGUE_IDS.SERIE_A,
+    LEAGUE_IDS.CHAMPIONS_LEAGUE
+  ];
+  
+  // Track which leagues have been loaded
+  const [loadedLeagueIds, setLoadedLeagueIds] = useState<Set<number>>(new Set());
+  const [isLoadingLeague, setIsLoadingLeague] = useState<boolean>(false);
+  
+  // Fetch fixtures for the selected date, filtering by league IDs
   useEffect(() => {
     const fetchFixtures = async () => {
       setIsLoading(true);
       setError(null);
       
       try {
-        const data = await getFixturesByDate(selectedDate);
+        console.log(`Fetching fixtures for popular leagues on date: ${selectedDate}`);
+        
+        // Create URL to fetch fixtures for the selected date
+        const params = { date: selectedDate };
+        const data = await fetchFromApi({
+          endpoint: 'fixtures',
+          params,
+          cacheDuration: 5 * 60 * 1000 // 5 minutes
+        });
         
         if (data?.response) {
-          const formattedFixtures = formatFixtures(data.response);
+          // Filter to only include popular leagues initially
+          const allFixtures = data.response as ApiFixture[];
+          const popularFixtures = allFixtures.filter(fixture => 
+            popularLeagueIds.includes(fixture.league.id)
+          );
+          
+          // Track which leagues have been loaded
+          const newLoadedLeagueIds = new Set(loadedLeagueIds);
+          popularLeagueIds.forEach(id => newLoadedLeagueIds.add(id));
+          setLoadedLeagueIds(newLoadedLeagueIds);
+          
+          // Format and set the fixtures
+          const formattedFixtures = formatFixtures(popularFixtures);
           setFixtures(formattedFixtures);
           setFixturesByLeague(groupFixturesByLeague(formattedFixtures));
+          console.log(`Initially loaded ${formattedFixtures.length} fixtures from ${popularLeagueIds.length} popular leagues`);
         } else {
           setFixtures([]);
           setFixturesByLeague({});
@@ -213,7 +251,66 @@ export default function FixturesPage() {
     };
     
     fetchFixtures();
-  }, [selectedDate, formatFixtures]);
+    // Reset loaded leagues when date changes
+    setLoadedLeagueIds(new Set());
+  }, [selectedDate, formatFixtures, loadedLeagueIds]); // Only fetch when selected date changes
+  
+  // Function to load specific league data
+  const loadLeagueData = useCallback(async (leagueId: number) => {
+    // Don't reload if already loaded
+    if (loadedLeagueIds.has(leagueId) || isLoadingLeague) {
+      return;
+    }
+    
+    setIsLoadingLeague(true);
+    try {
+      console.log(`Loading additional data for league ID: ${leagueId}`);
+      
+      // Create URL to fetch fixtures for the selected date and league
+      const params = { date: selectedDate, league: leagueId };
+      const data = await fetchFromApi({
+        endpoint: 'fixtures',
+        params,
+        cacheDuration: 5 * 60 * 1000 // 5 minutes
+      });
+      
+      if (data?.response) {
+        // Format and merge with existing fixtures
+        const leagueFixtures = formatFixtures(data.response);
+        const newFixtures = [...fixtures, ...leagueFixtures];
+        
+        // Remove duplicates based on match ID
+        const uniqueFixtures = Array.from(
+          new Map(newFixtures.map(item => [item.id, item])).values()
+        );
+        
+        // Update fixtures state
+        setFixtures(uniqueFixtures);
+        setFixturesByLeague(groupFixturesByLeague(uniqueFixtures));
+        
+        // Add to loaded leagues
+        const newLoadedLeagueIds = new Set(loadedLeagueIds);
+        newLoadedLeagueIds.add(leagueId);
+        setLoadedLeagueIds(newLoadedLeagueIds);
+        
+        console.log(`Successfully loaded data for league ID: ${leagueId}`);
+      }
+    } catch (err) {
+      console.error(`Error loading data for league ID: ${leagueId}`, err);
+    } finally {
+      setIsLoadingLeague(false);
+    }
+  }, [loadedLeagueIds, isLoadingLeague, selectedDate, fixtures, formatFixtures]);
+  
+  // Handle league selection
+  useEffect(() => {
+    if (filterLeague !== 'all') {
+      const leagueId = parseInt(filterLeague, 10);
+      if (!isNaN(leagueId) && !loadedLeagueIds.has(leagueId)) {
+        loadLeagueData(leagueId);
+      }
+    }
+  }, [filterLeague, loadedLeagueIds, loadLeagueData]);
   
   // Filter fixtures by league
   const filteredFixtures = filterLeague === 'all'
@@ -239,6 +336,8 @@ export default function FixturesPage() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6">
+        {/* Hero Banner */}
+        <Banner position="hero" size="large" />
         {/* Page header */}
         <div className="mb-6">
           <h1 className="text-2xl md:text-3xl font-bold" style={{ fontFamily: 'var(--font-prompt)' }}>

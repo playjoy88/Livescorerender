@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Sarabun, Prompt } from "next/font/google";
 import "./globals.css";
 
+// Import and initialize global proxy settings for server components
+import "@/utils/globalProxyBootstrap";
+// The import alone will initialize the proxy on the server side
+
 const sarabun = Sarabun({
   variable: "--font-sarabun",
   weight: ["300", "400", "500", "700"],

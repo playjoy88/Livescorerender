@@ -2,16 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getAdvertisements, Advertisement } from '../../../services/advertisementService';
+import { getAllAdvertisements as getAdvertisements, deleteAdvertisement, Advertisement, blobStorage } from '../../../services/supabaseAdvertisementService';
+import BannerWithAnalytics from '../../../components/BannerWithAnalytics';
 
-// Sample revenue data since our service doesn't include revenue
-const getRevenueForAd = (adId: string): number => {
-  const revenueMap: Record<string, number> = {
-    'ad-001': 18750,
-    'ad-002': 25400
-  };
-  return revenueMap[adId] || Math.floor(Math.random() * 15000) + 5000;
-};
 
 // Format date function
 const formatDate = (dateString: string) => {
@@ -90,16 +83,49 @@ export default function AdvertisementsPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [advertisements, setAdvertisements] = useState<Advertisement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Handle delete advertisement
+  const handleDeleteAd = async (id: string, imageUrl: string) => {
+    if (!window.confirm('คุณต้องการลบโฆษณานี้ใช่หรือไม่?')) {
+      return;
+    }
+    
+    setIsDeleting(true);
+    try {
+      // Delete from database
+      const success = await deleteAdvertisement(id);
+      
+      if (success) {
+        // If it's a blob storage URL, also delete the image file
+        if (blobStorage.isValidBlobUrl(imageUrl)) {
+          await blobStorage.deleteFile(imageUrl);
+        }
+        
+        // Update state to remove the deleted ad
+        setAdvertisements(prevAds => prevAds.filter(ad => ad.id !== id));
+        
+        alert('ลบโฆษณาเรียบร้อยแล้ว');
+      } else {
+        alert('เกิดข้อผิดพลาดในการลบโฆษณา');
+      }
+    } catch (error) {
+      console.error('Error deleting advertisement:', error);
+      alert('เกิดข้อผิดพลาดในการลบโฆษณา');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   
   // Fetch advertisements on component mount
   useEffect(() => {
     const fetchAds = async () => {
       try {
         const ads = await getAdvertisements();
-        // Add revenue to each ad since our service doesn't include it
+        // Use the existing revenue data or default to 0
         const adsWithRevenue = ads.map(ad => ({
           ...ad,
-          revenue: getRevenueForAd(ad.id)
+          revenue: ad.revenue || 0
         }));
         setAdvertisements(adsWithRevenue);
       } catch (error) {
@@ -260,11 +286,16 @@ export default function AdvertisementsPage() {
                   <tr key={ad.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded overflow-hidden">
-                          <img src={ad.imageUrl} alt={ad.name} className="h-10 w-10 object-cover" onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = 'https://via.placeholder.com/40x40?text=AD';
-                          }} />
+                        <div className="flex-shrink-0 h-16 w-24 bg-gray-200 rounded overflow-hidden">
+                                <img 
+                                  src={blobStorage.formatBlobUrl(ad.imageUrl)}
+                            alt={ad.name} 
+                            className="h-16 w-24 object-contain" 
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = 'https://via.placeholder.com/96x64?text=AD';
+                            }} 
+                          />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">{ad.name}</div>
@@ -303,16 +334,46 @@ export default function AdvertisementsPage() {
                         </button>
                       </Link>
                       <Link href={`/admin/advertisements/${ad.id}/edit`}>
-                        <button className="text-blue-600 hover:text-blue-900">
+                        <button className="text-blue-600 hover:text-blue-900 mr-3">
                           แก้ไข
                         </button>
                       </Link>
+                      <button 
+                        onClick={() => handleDeleteAd(ad.id, ad.imageUrl)}
+                        className="text-red-600 hover:text-red-900"
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? 'กำลังลบ...' : 'ลบ'}
+                      </button>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+      
+      {/* Banner Preview Section */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="font-bold text-lg mb-4">ตัวอย่างแบนเนอร์โฆษณา</h2>
+        <p className="text-sm text-gray-500 mb-6">ตัวอย่างการแสดงผลแบนเนอร์ในตำแหน่งต่างๆ</p>
+        
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-md font-medium mb-2">แบนเนอร์ส่วนท้าย (Footer)</h3>
+            <BannerWithAnalytics position="footer" size="large" />
+          </div>
+          
+          <div>
+            <h3 className="text-md font-medium mb-2">แบนเนอร์แถบข้าง (Sidebar)</h3>
+            <BannerWithAnalytics position="sidebar" size="medium" />
+          </div>
+          
+          <div>
+            <h3 className="text-md font-medium mb-2">แบนเนอร์ส่วนหัว (Hero)</h3>
+            <BannerWithAnalytics position="hero" size="large" />
+          </div>
         </div>
       </div>
       

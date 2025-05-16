@@ -6,6 +6,7 @@ import Layout from '../../components/Layout';
 import MatchCard from '../../components/MatchCard';
 import EnhancedLiveMatchWithStats from '../../components/EnhancedLiveMatchWithStats';
 import StandingsWidget from '../../components/StandingsWidget';
+import Banner from '../../components/Banner';
 import { getLiveFixtures, LEAGUE_IDS } from '../../services/api';
 
 // Define the Match interface
@@ -104,7 +105,13 @@ const formatMatchFromAPI = (fixture: ApiFixture): Match => {
   };
 };
 
-export default function LiveScores() {
+export default function LiveScores({
+  params: _params,
+  searchParams: _searchParams
+}: {
+  params: Record<string, never>;
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const [matches, setMatches] = useState<Match[]>([]);
   const [filterLeague, setFilterLeague] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -337,47 +344,84 @@ export default function LiveScores() {
           </div>
         </section>
         
-        {/* Filter by league */}
+        {/* Filter by league - Dropdown style */}
         <div className="mb-6">
-          <div className="flex flex-wrap items-center">
-            <div className="mr-4 mb-2 text-text-light">กรองตามลีก:</div>
-            <div className="flex flex-wrap gap-2">
-              <button 
-                className={`px-3 py-1 rounded-full text-sm ${filterLeague === 'all' ? 'bg-primary-color text-white' : 'bg-bg-light text-text-light'}`}
-                onClick={() => setFilterLeague('all')}
+          <div className="bg-bg-light p-4 rounded-lg shadow-sm">
+            <h3 className="text-base font-medium mb-3 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-primary-color" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              กรองตามลีก
+            </h3>
+            
+            <div className="relative">
+              <select
+                className="block w-full p-3 pr-10 text-base rounded-lg border border-border-color bg-white focus:outline-none focus:ring-2 focus:ring-primary-color appearance-none"
+                value={filterLeague}
+                onChange={(e) => setFilterLeague(e.target.value)}
+                style={{ fontFamily: 'var(--font-prompt)' }}
               >
-                ทั้งหมด
-              </button>
-              
-              {/* Dynamic league filter buttons based on available leagues */}
-              {availableLeagues.map(league => (
-                <button 
-                  key={league.id}
-                  className={`px-3 py-1 rounded-full text-sm flex items-center ${
-                    filterLeague === league.id.toString() ? 'bg-primary-color text-white' : 'bg-bg-light text-text-light'
-                  }`}
-                  onClick={() => setFilterLeague(league.id.toString())}
-                >
-                  {league.logo && <img src={league.logo} alt={league.name} className="w-4 h-4 mr-1" />}
-                  {league.name === 'Premier League' ? 'พรีเมียร์ลีก' : 
-                   league.name === 'Serie A' ? 'เซเรีย อา' : 
-                   league.name === 'Bundesliga' ? 'บุนเดสลีกา' : 
-                   league.name === 'Ligue 1' ? 'ลีกเอิง' : 
-                   league.name === 'La Liga' ? 'ลาลีกา' : 
-                   league.name === 'Thai League' ? 'ไทยลีก' : 
-                   league.name}
-                </button>
-              ))}
-              
-              {!availableLeagues.some(league => league.id === LEAGUE_IDS.PREMIER_LEAGUE) && (
-                <button 
-                  className={`px-3 py-1 rounded-full text-sm flex items-center bg-bg-light text-text-light opacity-60`}
-                  onClick={() => setFilterLeague(LEAGUE_IDS.PREMIER_LEAGUE.toString())}
-                >
-                  <img src="https://media.api-sports.io/football/leagues/39.png" alt="Premier League" className="w-4 h-4 mr-1" />
-                  พรีเมียร์ลีก
-                </button>
-              )}
+                <option value="all" className="p-2">
+                  ทั้งหมด
+                </option>
+                
+                {/* Top tier leagues first */}
+                {[
+                  { id: LEAGUE_IDS.PREMIER_LEAGUE, name: 'พรีเมียร์ลีก', logo: 'https://media.api-sports.io/football/leagues/39.png' },
+                  { id: LEAGUE_IDS.LA_LIGA, name: 'ลาลีกา', logo: 'https://media.api-sports.io/football/leagues/140.png' }, 
+                  { id: LEAGUE_IDS.SERIE_A, name: 'เซเรีย อา', logo: 'https://media.api-sports.io/football/leagues/135.png' },
+                  { id: LEAGUE_IDS.BUNDESLIGA, name: 'บุนเดสลีกา', logo: 'https://media.api-sports.io/football/leagues/78.png' },
+                  { id: LEAGUE_IDS.LIGUE_1, name: 'ลีกเอิง', logo: 'https://media.api-sports.io/football/leagues/61.png' },
+                  { id: LEAGUE_IDS.THAI_LEAGUE, name: 'ไทยลีก', logo: 'https://media.api-sports.io/football/leagues/290.png' }
+                ].map(topLeague => {
+                  // Check if league is available in current matches
+                  const isAvailable = availableLeagues.some(league => league.id === topLeague.id);
+                  
+                  if (isAvailable) {
+                    return (
+                      <option key={topLeague.id} value={topLeague.id.toString()} className="p-2">
+                        {topLeague.name}
+                      </option>
+                    );
+                  } else if (topLeague.id === LEAGUE_IDS.PREMIER_LEAGUE) {
+                    // Always include Premier League option even if not available
+                    return (
+                      <option key={topLeague.id} value={topLeague.id.toString()} className="p-2 text-text-light" disabled>
+                        {topLeague.name} (ไม่มีแมตช์)
+                      </option>
+                    );
+                  }
+                  return null;
+                })}
+                
+                {/* Divider */}
+                <option disabled className="p-2 bg-bg-light">───────────────</option>
+                
+                {/* Other available leagues */}
+                {availableLeagues
+                  .filter(league => 
+                    ![LEAGUE_IDS.PREMIER_LEAGUE, LEAGUE_IDS.LA_LIGA, LEAGUE_IDS.SERIE_A, 
+                      LEAGUE_IDS.BUNDESLIGA, LEAGUE_IDS.LIGUE_1, LEAGUE_IDS.THAI_LEAGUE]
+                      .includes(league.id)
+                  )
+                  .map(league => (
+                    <option key={league.id} value={league.id.toString()} className="p-2">
+                      {league.name === 'Premier League' ? 'พรีเมียร์ลีก' : 
+                       league.name === 'Serie A' ? 'เซเรีย อา' : 
+                       league.name === 'Bundesliga' ? 'บุนเดสลีกา' : 
+                       league.name === 'Ligue 1' ? 'ลีกเอิง' : 
+                       league.name === 'La Liga' ? 'ลาลีกา' : 
+                       league.name === 'Thai League' ? 'ไทยลีก' : 
+                       league.name}
+                    </option>
+                  ))
+                }
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-700">
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>
@@ -549,13 +593,11 @@ export default function LiveScores() {
         )}
         
           {/* Sponsors and ads section */}
-          <div className="mt-10">
+          <div className="mt-10 mb-6">
             <h2 className="text-xl font-bold mb-4" style={{ fontFamily: 'var(--font-prompt)' }}>
               สนับสนุนโดย
             </h2>
-            <div className="ad-placeholder rounded-lg mb-6 mt-4">
-              พื้นที่โฆษณา
-            </div>
+            <Banner position="pre-footer" size="medium" />
           </div>
           </div>
           
@@ -573,6 +615,11 @@ export default function LiveScores() {
                 <StandingsWidget leagueId={LEAGUE_IDS.SERIE_A} limit={5} />
                 <StandingsWidget leagueId={LEAGUE_IDS.BUNDESLIGA} limit={5} />
               </div>
+            </div>
+            
+            {/* Sidebar Banner */}
+            <div className="mb-6">
+              <Banner position="sidebar" size="medium" />
             </div>
             
             {/* News section link */}

@@ -1,87 +1,73 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getActiveAdvertisementsByPosition as getActiveAdsByPosition, trackImpression, trackClick, Advertisement, blobStorage } from '../services/supabaseAdvertisementService';
 
 interface BannerProps {
-  position: 'hero' | 'in-feed' | 'sidebar' | 'pre-footer' | 'interstitial';
-  size?: 'small' | 'medium' | 'large';
+  position: string;
+  size?: 'small' | 'medium' | 'large'; // Add size prop
 }
 
 const Banner: React.FC<BannerProps> = ({ position, size = 'medium' }) => {
-  // Get ad description based on position
-  const getAdDescription = (pos: string) => {
-    switch (pos) {
-      case 'hero':
-        return 'ส่วนบนสุด';
-      case 'in-feed':
-        return 'ในฟีด';
-      case 'sidebar':
-        return 'ด้านข้าง';
-      case 'pre-footer':
-        return 'ก่อนส่วนท้าย';
-      case 'interstitial':
-        return 'ระหว่างเนื้อหา';
-      default:
-        return '';
+  const [ad, setAd] = useState<Advertisement | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAd = async () => {
+      try {
+        const ads = await getActiveAdsByPosition(position);
+        if (ads.length > 0) {
+          // Select a random ad from the list
+          const randomAd = ads[Math.floor(Math.random() * ads.length)];
+          setAd(randomAd);
+          // Track impression
+          await trackImpression(randomAd.id);
+        }
+      } catch (error) {
+        console.error('Error fetching ad:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAd();
+  }, [position]);
+
+  const handleClick = async () => {
+    if (ad) {
+      await trackClick(ad.id);
+      window.open(ad.url, '_blank');
     }
   };
-  // Determine banner style based on position and size
-  const getBannerStyle = () => {
-    let className = 'ad-placeholder rounded-lg text-center overflow-hidden ';
-    
-    switch (position) {
-      case 'hero':
-        className += 'w-full h-32 md:h-40 mb-6 ';
-        break;
-      case 'in-feed':
-        className += 'w-full h-24 my-4 ';
-        break;
-      case 'sidebar':
-        className += 'w-full h-64 mb-6 ';
-        break;
-      case 'pre-footer':
-        className += 'w-full h-28 my-8 ';
-        break;
-      case 'interstitial':
-        className += 'w-full h-20 my-4 ';
-        break;
-      default:
-        className += 'w-full h-24 my-4 ';
-    }
-    
-    switch (size) {
-      case 'small':
-        className += 'text-sm';
-        break;
+
+  if (loading) {
+    return <div>Loading ad...</div>;
+  }
+
+  if (!ad) {
+    return <div>No ad available</div>;
+  }
+
+  // Apply different sizes based on the size prop
+  const getSizeClass = () => {
+    switch(size) {
+      case 'small': return 'max-w-xs';
+      case 'large': return 'w-full';
       case 'medium':
-        className += 'text-base';
-        break;
-      case 'large':
-        className += 'text-lg';
-        break;
-      default:
-        className += 'text-base';
+      default: return 'max-w-2xl';
     }
-    
-    return className;
   };
-  
+
   return (
-    <div className={getBannerStyle()}>
-      <div className="h-full w-full bg-gradient-to-br from-primary-color to-accent-color flex flex-col items-center justify-center p-4 text-white">
-        <div className="flex items-center mb-2">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          <span className="font-bold text-lg">โฆษณา {getAdDescription(position)}</span>
-        </div>
-        <p className="text-center text-sm">
-          {size === 'large' ? 'สมัครวันนี้รับโบนัส 100%' : 'สมัครสมาชิกวันนี้'}
-        </p>
-        {size === 'large' && (
-          <div className="mt-2 bg-white bg-opacity-20 py-1 px-3 rounded-full text-sm">
-            www.betthaisport.com
-          </div>
-        )}
-      </div>
+    <div 
+      className={`banner ${ad.position} ${getSizeClass()} mx-auto overflow-hidden rounded-lg shadow-md`} 
+      onClick={handleClick} 
+      style={{ cursor: 'pointer' }}
+    >
+      <img 
+        src={blobStorage.formatBlobUrl(ad.imageUrl)} 
+        alt={ad.name} 
+        style={{ width: '100%', height: 'auto' }} 
+        className="transition-transform hover:scale-105 duration-300"
+      />
     </div>
   );
 };

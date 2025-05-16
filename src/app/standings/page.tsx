@@ -56,7 +56,13 @@ interface StandingsResponse {
   };
 }
 
-export default function StandingsPage() {
+export default function StandingsPage({
+  params: _params,
+  searchParams: _searchParams
+}: {
+  params: Record<string, never>;
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const [selectedLeague, setSelectedLeague] = useState<number>(LEAGUE_IDS.THAI_LEAGUE);
   const [standings, setStandings] = useState<Standing[]>([]);
   const [league, setLeague] = useState<League | null>(null);

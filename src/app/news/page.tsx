@@ -2,47 +2,40 @@
 
 import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
-// Import will be used when API endpoint is available
-// import { fetchFromApi } from '../../services/api';
+import { getNewsFromDatabase } from '@/services/newsService';
+import { NewsArticle } from '@/types/news';
 
-// News article interface
-interface NewsArticle {
-  id: string;
-  title: string;
-  content: string;
-  image?: string;
-  publishedAt: string;
-  source?: string;
-  tags?: string[];
-  category?: 'thai' | 'international';
-}
-
-export default function NewsPage() {
+export default function NewsPage({
+  params: _params,
+  searchParams: _searchParams
+}: {
+  params: Record<string, never>;
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  // Error state will be used when real API is implemented
+  const [error, setError] = useState<string | null>(null);
   const [newsCategory, setNewsCategory] = useState<'all' | 'thai' | 'international'>('all');
 
   useEffect(() => {
-    // Always use sample news for now since we don't have a real news API endpoint yet
-    setNews(getSampleNews());
-    setIsLoading(false);
-    
-    // Uncomment this when we have a real news API endpoint
-    /*
     const fetchNews = async () => {
       setIsLoading(true);
       setError(null);
       
       try {
-        const data = await fetchFromApi({
-          endpoint: 'news',
-          params: { category: 'football' }
-        });
+        // Get news from our database
+        let newsData: NewsArticle[] = [];
         
-        if (data?.response) {
-          setNews(data.response);
+        if (newsCategory === 'all') {
+          newsData = await getNewsFromDatabase();
         } else {
+          newsData = await getNewsFromDatabase(newsCategory);
+        }
+        
+        if (newsData && newsData.length > 0) {
+          setNews(newsData);
+        } else {
+          // Fallback to sample news if no data in database
           setNews(getSampleNews());
         }
       } catch (err) {
@@ -53,8 +46,9 @@ export default function NewsPage() {
         setIsLoading(false);
       }
     };
-    */
-  }, []);
+    
+    fetchNews();
+  }, [newsCategory]);
 
   // Format date to Thai format
   const formatDateToThai = (dateString: string) => {

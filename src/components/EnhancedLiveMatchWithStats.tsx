@@ -253,10 +253,24 @@ const EnhancedLiveMatchWithStats: React.FC<EnhancedLiveMatchWithStatsProps> = ({
 
   return (
     <div className="mb-4 border border-border-color rounded-lg shadow-sm overflow-hidden">
-      {/* Highlight that this is a live match */}
-      <div className="bg-live-color text-white py-1 px-4 flex items-center">
-        <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
-        <span className="text-sm font-medium">กำลังแข่งขัน{match.elapsed ? ` - นาทีที่ ${match.elapsed}` : ''}</span>
+      {/* Highlight that this is a live match - Improved font and readability */}
+      <div className="bg-live-color text-white py-2 px-4 flex items-center justify-between">
+        <div className="flex items-center">
+          <div className="w-2.5 h-2.5 bg-white rounded-full mr-2 animate-pulse"></div>
+          <span className="text-sm font-semibold tracking-wide" style={{ fontFamily: 'var(--font-prompt)' }}>
+            กำลังแข่งขัน
+          </span>
+        </div>
+        {match.elapsed && (
+          <div className="flex items-center bg-white bg-opacity-20 px-2 py-0.5 rounded-full">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-sm font-bold" style={{ fontFamily: 'var(--font-prompt)' }}>
+              {match.elapsed}&rsquo;
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Match Information */}
@@ -384,7 +398,7 @@ const EnhancedLiveMatchWithStats: React.FC<EnhancedLiveMatchWithStatsProps> = ({
                   <div className="space-y-2">
                     {goals.map((goal, index) => (
                       <div key={`goal-${index}`} className="flex items-center text-xs">
-                        <span className="w-10 text-center font-medium">{goal.time.elapsed}{goal.time.extra ? `+${goal.time.extra}` : ''}&apos;</span>
+                        <span className="w-10 text-center font-medium">{goal.time.elapsed}{goal.time.extra ? `+${goal.time.extra}` : ''}&rsquo;</span>
                         <span className="flex-1">{goal.player.name}</span>
                         <span className="text-right">{goal.team.name}</span>
                       </div>
@@ -402,7 +416,7 @@ const EnhancedLiveMatchWithStats: React.FC<EnhancedLiveMatchWithStatsProps> = ({
                   <div className="space-y-2">
                     {cards.map((card, index) => (
                       <div key={`card-${index}`} className="flex items-center text-xs">
-                        <span className="w-10 text-center font-medium">{card.time.elapsed}{card.time.extra ? `+${card.time.extra}` : ''}&apos;</span>
+                        <span className="w-10 text-center font-medium">{card.time.elapsed}{card.time.extra ? `+${card.time.extra}` : ''}&rsquo;</span>
                         <span className="w-5 text-center">
                           {card.type === 'Yellow Card' ? '🟨' : '🟥'}
                         </span>

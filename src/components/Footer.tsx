@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import Banner from './Banner';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -147,6 +148,11 @@ const Footer = () => {
               </li>
             </ul>
           </div>
+        </div>
+        
+        {/* Footer Banner */}
+        <div className="my-8">
+          <Banner position="footer" size="large" />
         </div>
         
         <div className="pt-8 mt-8 border-t border-border-color">

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../../../components/Layout';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
 import { 
   fetchFromApi, 
   getFixtureStatistics, 
@@ -97,8 +96,13 @@ const emptyMatch: MatchDetail = {
   events: []
 };
 
-export default function MatchDetail() {
-  const params = useParams();
+export default function MatchDetail({
+  params,
+  searchParams: _searchParams
+}: {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const matchId = Number(params.id);
   const [activeTab, setActiveTab] = useState('events');
   

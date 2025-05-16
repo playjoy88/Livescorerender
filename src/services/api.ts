@@ -3,14 +3,12 @@
  * Handles all requests to the football API
  */
 
-// Always use the server-side proxy for production
-// In development, we still offer flexibility with environment variables
-const isProduction = process.env.NODE_ENV === 'production';
+// Always use the server-side proxy to avoid IP whitelisting issues
+// The proxy handles the API key and host headers and routes requests through Fixie proxy
+// This ensures all API requests come from whitelisted Fixie IPs, not the server's actual IP
+const API_URL = '/api/proxy'; // Server-side proxy handles API keys and proxy routing
 
-// Always use proxy endpoint in production for security
-const API_URL = isProduction 
-  ? '/api/proxy' // Server-side proxy (secure - keeps API key on server)
-  : process.env.NEXT_PUBLIC_API_URL || '/api/proxy'; // Default to proxy even in development
+import apiSettingsService from './apiSettingsService';
 
 // Cache storage for API responses
 interface ApiResponse {
@@ -25,7 +23,22 @@ interface ApiResponse {
 }
 
 const cache: Record<string, { data: ApiResponse; timestamp: number }> = {};
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+// Default cache duration (will be overridden by settings from API if available)
+let CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+// Load cache settings from API
+(async () => {
+  try {
+    const settings = await apiSettingsService.getSettings();
+    if (settings) {
+      // Convert cache timeout from minutes to milliseconds
+      CACHE_DURATION = (settings.cache_timeout || 5) * 60 * 1000;
+      console.log(`API cache timeout set to ${settings.cache_timeout} minutes`);
+    }
+  } catch (error) {
+    console.error('Failed to load API settings for cache:', error);
+  }
+})();
 
 interface ApiOptions {
   endpoint: string;
@@ -39,20 +52,17 @@ interface ApiOptions {
 export async function fetchFromApi({ endpoint, params = {}, cacheDuration = CACHE_DURATION }: ApiOptions) {
   // Construct the URL with query parameters
   const queryParams = new URLSearchParams();
+  
+  // Pass endpoint as a query parameter to the proxy
+  queryParams.append('endpoint', endpoint);
+  
+  // Add other parameters
   Object.entries(params).forEach(([key, value]) => {
     queryParams.append(key, String(value));
   });
   
-  // For production, use the proxy differently with endpoint as a parameter
-  let url;
-  if (isProduction) {
-    // Pass endpoint as a query parameter to the proxy
-    queryParams.append('endpoint', endpoint);
-    url = `${API_URL}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-  } else {
-    // For direct API access, append the endpoint to the URL
-    url = `${API_URL}/${endpoint}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-  }
+  // Build the full URL - use our proxy endpoint
+  const url = `${API_URL}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
   
   // Check cache first
   const cacheKey = url;
@@ -62,9 +72,8 @@ export async function fetchFromApi({ endpoint, params = {}, cacheDuration = CACH
     return cache[cacheKey].data;
   }
   
-  // Make the API request
+  // Make the API request through our proxy
   try {
-    // No need to pass API key in headers - proxy handles this securely
     console.log('Fetching URL:', url); // Debug log
     
     const response = await fetch(url);
@@ -133,7 +142,7 @@ export async function getLeagueStandings(league: number, season: number) {
  */
 export async function getFixtureStatistics(fixtureId: number) {
   return fetchFromApi({
-    endpoint: `fixtures/statistics`,
+    endpoint: 'fixtures/statistics',
     params: { fixture: fixtureId }
   });
 }
@@ -143,7 +152,7 @@ export async function getFixtureStatistics(fixtureId: number) {
  */
 export async function getFixtureEvents(fixtureId: number) {
   return fetchFromApi({
-    endpoint: `fixtures/events`,
+    endpoint: 'fixtures/events',
     params: { fixture: fixtureId },
     cacheDuration: 60 * 1000 // 1 minute for events
   });
@@ -154,7 +163,7 @@ export async function getFixtureEvents(fixtureId: number) {
  */
 export async function getFixtureLineups(fixtureId: number) {
   return fetchFromApi({
-    endpoint: `fixtures/lineups`,
+    endpoint: 'fixtures/lineups',
     params: { fixture: fixtureId }
   });
 }
@@ -164,7 +173,7 @@ export async function getFixtureLineups(fixtureId: number) {
  */
 export async function getFixturePredictions(fixtureId: number) {
   return fetchFromApi({
-    endpoint: `predictions`,
+    endpoint: 'predictions',
     params: { fixture: fixtureId }
   });
 }
@@ -174,7 +183,7 @@ export async function getFixturePredictions(fixtureId: number) {
  */
 export async function getHeadToHead(teamId1: number, teamId2: number) {
   return fetchFromApi({
-    endpoint: `fixtures/headtohead`,
+    endpoint: 'fixtures/headtohead',
     params: { h2h: `${teamId1}-${teamId2}` }
   });
 }

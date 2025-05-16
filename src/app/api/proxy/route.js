@@ -10,8 +10,8 @@ import { NextResponse } from 'next/server';
 
 // API key and host should be stored in environment variables on the server side
 const API_KEY = process.env.API_KEY || process.env.NEXT_PUBLIC_API_KEY || '';
-const API_HOST = process.env.API_HOST || process.env.NEXT_PUBLIC_API_HOST || 'api-football-v1.p.rapidapi.com';
-const API_BASE_URL = 'https://api-football-v1.p.rapidapi.com/v3';
+const API_HOST = process.env.API_HOST || process.env.NEXT_PUBLIC_API_HOST || 'v3.football.api-sports.io';
+const API_BASE_URL = `https://${API_HOST}/v3`;
 
 /**
  * GET handler for football API proxy
@@ -42,19 +42,23 @@ export async function GET(request) {
         console.log(`[API Proxy] Requesting: ${apiUrl}`);
         console.log(`[API Proxy] Using API key: ${API_KEY ? API_KEY.substring(0, 3) + '...' + (API_KEY.length > 6 ? API_KEY.substring(API_KEY.length - 3) : '') : 'No API Key'}`);
     
-        // RapidAPI requires specific headers
+        // RapidAPI requires specific headers - only use allowed headers per API documentation
         const headers = {
             'x-rapidapi-key': API_KEY,
-            'x-rapidapi-host': API_HOST
+            'x-rapidapi-host': API_HOST,
+            'x-apisports-key': API_KEY // Alternative header format also accepted
         };
         
         console.log(`[API Proxy] Using headers:`, Object.keys(headers));
         
-        // Make the request to the football API
+        // Direct approach without Fixie for now - we'll handle IP restrictions differently
+        console.log(`[API Proxy] Making direct API request to: ${apiUrl}`);
+        
+        // Make the direct request to the football API
         const response = await fetch(apiUrl, {
             headers,
             // Pass through cache control headers
-            cache: 'no-store',
+            cache: 'no-store'
         });
     
         if (!response.ok) {

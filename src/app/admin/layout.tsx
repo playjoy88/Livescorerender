@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import DbInitializer from '@/components/DbInitializer';
 
 // Admin Layout component that wraps all admin pages
 export default function AdminLayout({
@@ -12,19 +13,50 @@ export default function AdminLayout({
 }) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showDbTools, setShowDbTools] = useState(false);
 
-  // Admin navigation items
-  const navItems = [
-    { path: '/admin', label: 'Dashboard', icon: 'chart-bar' },
-    { path: '/admin/matches', label: 'Match Management', icon: 'football' },
-    { path: '/admin/users', label: 'User Management', icon: 'users' },
-    { path: '/admin/predictions', label: 'Prediction Contest', icon: 'trending-up' },
-    { path: '/admin/ai-models', label: 'AI Models', icon: 'brain' },
-    { path: '/admin/advertisements', label: 'Ad Management', icon: 'megaphone' },
-    { path: '/admin/content', label: 'Content Management', icon: 'document-text' },
-    { path: '/admin/analytics', label: 'Analytics', icon: 'chart-pie' },
-    { path: '/admin/settings', label: 'Settings', icon: 'cog' },
+  // Admin navigation groups
+  const navGroups = [
+    {
+      title: "Main",
+      items: [
+        { path: '/admin', label: 'Dashboard', icon: 'chart-bar', thai: 'แดชบอร์ด' },
+        { path: '/admin/analytics', label: 'Analytics', icon: 'chart-pie', thai: 'การวิเคราะห์' },
+      ]
+    },
+    {
+      title: "Content",
+      items: [
+        { path: '/admin/matches', label: 'Match Management', icon: 'football', thai: 'จัดการแมตช์' },
+        { path: '/admin/news', label: 'News Management', icon: 'newspaper', thai: 'จัดการข่าวสาร' },
+        { path: '/admin/content', label: 'Content Management', icon: 'document-text', thai: 'จัดการเนื้อหา' },
+      ]
+    },
+    {
+      title: "Users",
+      items: [
+        { path: '/admin/user-management', label: 'User Management', icon: 'users', thai: 'จัดการผู้ใช้' },
+        { path: '/admin/predictions', label: 'Prediction Contest', icon: 'trending-up', thai: 'การแข่งขันทำนายผล' },
+      ]
+    },
+    {
+      title: "Marketing",
+      items: [
+        { path: '/admin/advertisements', label: 'Ad Management', icon: 'megaphone', thai: 'จัดการโฆษณา' },
+      ]
+    },
+    {
+      title: "Advanced",
+      items: [
+        { path: '/admin/ai-models', label: 'AI Models', icon: 'brain', thai: 'โมเดล AI' },
+        { path: '/admin/database-tools', label: 'Database Tools', icon: 'database', thai: 'เครื่องมือฐานข้อมูล' },
+        { path: '/admin/settings/site', label: 'Settings', icon: 'cog', thai: 'ตั้งค่า' },
+      ]
+    }
   ];
+
+  // Flatten nav items for breadcrumb and title display
+  const navItems = navGroups.flatMap(group => group.items);
 
   // Function to render the appropriate icon based on name
   const renderIcon = (iconName: string) => {
@@ -80,6 +112,18 @@ export default function AdminLayout({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
           </svg>
         );
+      case 'database':
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+          </svg>
+        );
+      case 'newspaper':
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+          </svg>
+        );
       case 'cog':
         return (
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -130,25 +174,72 @@ export default function AdminLayout({
           </button>
         </div>
 
-        <nav className="mt-8">
-          <ul>
-            {navItems.map((item) => (
-              <li key={item.path} className="mb-2">
-                <Link href={item.path}>
-                  <div
-                    className={`${
-                      pathname === item.path
-                        ? 'bg-indigo-800'
-                        : 'hover:bg-indigo-600'
-                    } flex items-center px-4 py-3 transition duration-200 ease-in-out`}
-                  >
-                    <span className="mr-3">{renderIcon(item.icon)}</span>
-                    {isSidebarOpen && <span>{item.label}</span>}
+        <nav className="mt-6 overflow-y-auto max-h-[calc(100vh-150px)]">
+          {navGroups.map((group, groupIndex) => (
+            <div key={groupIndex} className="mb-6">
+              {/* Group Title - only show when sidebar is open */}
+              {isSidebarOpen && (
+                <h3 className="text-xs font-semibold text-indigo-300 uppercase tracking-wider px-4 mb-2">
+                  {group.title}
+                </h3>
+              )}
+              
+              <ul>
+                {group.items.map((item) => (
+                  <li key={item.path} className="mb-1">
+                    <Link href={item.path}>
+                      <div
+                        className={`${
+                          pathname === item.path
+                            ? 'bg-indigo-800 text-white'
+                            : 'text-indigo-100 hover:bg-indigo-600'
+                        } flex items-center px-4 py-2.5 transition duration-200 ease-in-out rounded-r-lg`}
+                      >
+                        <span className="mr-3">{renderIcon(item.icon)}</span>
+                        {isSidebarOpen && (
+                          <div className="flex flex-col">
+                            <span className="text-sm">{item.label}</span>
+                            <span className="text-xs text-indigo-300">{item.thai}</span>
+                          </div>
+                        )}
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          
+          {/* Database Tools Trigger */}
+          <div className="px-4 pt-2 pb-4 border-t border-indigo-600">
+            <div 
+              onClick={() => setShowDbTools(!showDbTools)}
+              className={`cursor-pointer hover:bg-indigo-600 flex items-center px-3 py-2.5 rounded-lg transition duration-200 ease-in-out ${showDbTools ? 'bg-indigo-800' : ''}`}
+            >
+              <span className="mr-3 text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+              </span>
+              {isSidebarOpen && (
+                <div className="flex justify-between items-center w-full text-white">
+                  <div className="flex flex-col">
+                    <span className="text-sm">Database Tools</span>
+                    <span className="text-xs text-indigo-300">เครื่องมือฐานข้อมูล</span>
                   </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className={`h-4 w-4 transition-transform duration-200 ${showDbTools ? 'transform rotate-180' : ''}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          </div>
         </nav>
 
         {/* Admin info */}
@@ -178,6 +269,15 @@ export default function AdminLayout({
               </h2>
             </div>
             <div className="flex items-center space-x-4">
+              <button 
+                onClick={() => setShowDbTools(!showDbTools)}
+                className="p-2 rounded-full hover:bg-gray-100"
+                title="Database Tools"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+                </svg>
+              </button>
               <button className="p-2 rounded-full hover:bg-gray-100">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -189,12 +289,19 @@ export default function AdminLayout({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
               </button>
-              <button className="text-indigo-600 hover:text-indigo-800 font-medium">
+              <Link href="/" className="text-indigo-600 hover:text-indigo-800 font-medium">
                 กลับไปหน้าเว็บไซต์
-              </button>
+              </Link>
             </div>
           </div>
         </header>
+
+        {/* Database Initializer Component */}
+        {showDbTools && (
+          <div className="px-6 pt-4">
+            <DbInitializer />
+          </div>
+        )}
 
         {/* Page content */}
         <main className="p-6">

@@ -67,7 +67,13 @@ interface ApiFixture {
   };
 }
 
-export default function PredictionsPage() {
+export default function PredictionsPage({
+  params: _params,
+  searchParams: _searchParams
+}: {
+  params: Record<string, never>;
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
   const [upcomingMatches, setUpcomingMatches] = useState<Match[]>([]);
   const [predictions, setPredictions] = useState<Record<number, Prediction>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
