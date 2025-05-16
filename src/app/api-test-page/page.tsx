@@ -1,308 +1,161 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Layout from '../../components/Layout';
-
-// Environment info interface
-interface EnvironmentInfo {
-  productionMode: boolean;
-  apiUrl: string;
-  apiKeyPresent: boolean;
-  hostname: string;
-}
-
-// Result interface
-interface ApiResult {
-  endpoint: string;
-  status: 'pending' | 'success' | 'error';
-  data: Record<string, unknown> | null;
-  error?: string;
-  duration?: number;
-}
+import { ENDPOINTS } from '@/services/apiEndpoints';
+import { fetchFromApi } from '@/services/api';
 
 export default function ApiTestPage() {
-  const [envInfo, setEnvInfo] = useState<EnvironmentInfo>({
-    productionMode: true,
-    apiUrl: '/api/proxy',
-    apiKeyPresent: false,
-    hostname: ''
-  });
-  
-  const [results, setResults] = useState<ApiResult[]>([]);
-  const [isRunningTests, setIsRunningTests] = useState(false);
-  const [expandedResults, setExpandedResults] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [apiStatus, setApiStatus] = useState<any>(null);
+  const [apiHeaders, setApiHeaders] = useState<Record<string, string>>({});
+  const [apiSettings, setApiSettings] = useState<{
+    apiHost: string;
+    apiVersion: string;
+    debugMode: boolean;
+  } | null>(null);
 
-  // Test endpoints
-  const endpoints = [
-    { name: 'Countries', path: 'countries' },
-    { name: 'Live Matches', path: 'fixtures?live=all' },
-    { name: 'Leagues', path: 'leagues' }
-  ];
-
-  // Toggle result expansion
-  const toggleExpand = (endpoint: string) => {
-    setExpandedResults(prev => ({
-      ...prev,
-      [endpoint]: !prev[endpoint]
-    }));
-  };
-
-  // Get environment info on load
   useEffect(() => {
-    setEnvInfo({
-      productionMode: window.location.hostname !== 'localhost',
-      apiUrl: '/api/proxy',
-      apiKeyPresent: true, // Assuming key is present server-side
-      hostname: window.location.hostname
-    });
+    async function testApiConnection() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Try to get status endpoint (simplest endpoint)
+        const response = await fetchFromApi({
+          endpoint: ENDPOINTS.STATUS
+        });
+        
+        setApiStatus(response);
+        
+        // Check response headers from Network tab
+        const headers: Record<string, string> = {};
+        
+        // Display API settings from proxy response headers
+        if (response && response.headers) {
+          headers['Request Limit'] = response.headers['x-ratelimit-requests-limit'] || 'Not available';
+          headers['Requests Remaining'] = response.headers['x-ratelimit-requests-remaining'] || 'Not available';
+          headers['Rate Limit'] = response.headers['X-RateLimit-Limit'] || 'Not available';
+          headers['Rate Remaining'] = response.headers['X-RateLimit-Remaining'] || 'Not available';
+        }
+        
+        setApiHeaders(headers);
+        
+        // Try to get API settings from proxy endpoint directly
+        const settingsResponse = await fetch('/api/proxy-settings');
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          setApiSettings(settingsData);
+        }
+        
+      } catch (err) {
+        console.error('Error testing API connection:', err);
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    testApiConnection();
   }, []);
 
-  // Run all tests
-  const runAllTests = async () => {
-    setIsRunningTests(true);
-    setResults([]);
-    
-    // Initialize pending results for all endpoints
-    const pendingResults = endpoints.map(endpoint => ({
-      endpoint: endpoint.path,
-      status: 'pending' as const,
-      data: null
-    }));
-    setResults(pendingResults);
-    
-    // Run each test
-    for (let i = 0; i < endpoints.length; i++) {
-      await runTest(endpoints[i].path, i);
-    }
-    
-    setIsRunningTests(false);
-  };
-
-  // Run a single test
-  const runTest = async (endpoint: string, index: number) => {
-    const startTime = performance.now();
-    
-    try {
-      // Clone current results
-      const newResults = [...results];
-      
-      // Update status to pending
-      newResults[index] = {
-        ...newResults[index],
-        status: 'pending'
-      };
-      setResults(newResults);
-      
-      // Make the API call
-      const response = await fetch(`${envInfo.apiUrl}?endpoint=${endpoint}`);
-      const data = await response.json();
-      const endTime = performance.now();
-      
-      // Update with results
-      newResults[index] = {
-        endpoint,
-        status: response.ok ? 'success' : 'error',
-        data,
-        duration: Math.round(endTime - startTime),
-        error: !response.ok ? `HTTP ${response.status}: ${response.statusText}` : undefined
-      };
-      
-      setResults(newResults);
-      
-      // Auto-expand error results
-      if (!response.ok) {
-        setExpandedResults(prev => ({
-          ...prev,
-          [endpoint]: true
-        }));
-      }
-      
-      return data;
-    } catch (error) {
-      const endTime = performance.now();
-      
-      // Update with error
-      const newResults = [...results];
-      newResults[index] = {
-        endpoint,
-        status: 'error',
-        data: null,
-        duration: Math.round(endTime - startTime),
-        error: error instanceof Error ? error.message : 'Unknown error'
-      };
-      
-      setResults(newResults);
-      
-      // Auto-expand error results
-      setExpandedResults(prev => ({
-        ...prev,
-        [endpoint]: true
-      }));
-      
-      return null;
-    }
-  };
-
-  // Format JSON for display
-  const formatJson = (data: Record<string, unknown> | null) => {
-    return JSON.stringify(data, null, 2);
-  };
-
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold mb-6" style={{ fontFamily: 'var(--font-prompt)' }}>
-          API Test Page
-        </h1>
-        
-        {/* Environment Information */}
-        <div className="mb-8 bg-bg-light p-6 rounded-lg shadow-md">
-          <h2 className="text-xl font-semibold mb-4">Environment Info</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-white p-3 rounded border">
-              <p className="text-sm font-medium text-text-light">Production Mode</p>
-              <p className="font-mono">
-                {envInfo.productionMode ? (
-                  <span className="text-green-600">Yes</span>
-                ) : (
-                  <span className="text-amber-600">No (Development)</span>
-                )}
-              </p>
+    <div className="container mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-6">API Connection Test</h1>
+
+      {loading ? (
+        <div className="flex items-center justify-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+          <p className="ml-3">Testing API connection...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+              </svg>
             </div>
-            
-            <div className="bg-white p-3 rounded border">
-              <p className="text-sm font-medium text-text-light">API URL</p>
-              <p className="font-mono break-all">{envInfo.apiUrl}</p>
-              <p className="text-xs text-text-lighter mt-1">(server-side proxy)</p>
-            </div>
-            
-            <div className="bg-white p-3 rounded border">
-              <p className="text-sm font-medium text-text-light">API Key Present</p>
-              <p className="font-mono">
-                {envInfo.apiKeyPresent ? (
-                  <span className="text-green-600">Yes</span>
-                ) : (
-                  <span className="text-red-600">No</span>
-                )}
-              </p>
-            </div>
-            
-            <div className="bg-white p-3 rounded border">
-              <p className="text-sm font-medium text-text-light">Current Hostname</p>
-              <p className="font-mono break-all">{envInfo.hostname}</p>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">Error: {error}</p>
             </div>
           </div>
         </div>
-        
-        {/* Test Controls */}
-        <div className="mb-8 bg-bg-light p-6 rounded-lg shadow-md">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold">API Test Suite</h2>
-            <button
-              className="bg-primary-color text-white px-4 py-2 rounded-lg font-medium hover:bg-opacity-90 transition-colors disabled:opacity-50"
-              onClick={runAllTests}
-              disabled={isRunningTests}
-            >
-              {isRunningTests ? 'Running Tests...' : 'Run All Tests'}
-            </button>
-          </div>
-          
-          <div className="mt-4 flex flex-wrap gap-2">
-            {endpoints.map((endpoint, index) => (
-              <button
-                key={endpoint.path}
-                className="px-3 py-1 bg-white rounded border border-gray-300 text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
-                onClick={() => runTest(endpoint.path, index)}
-                disabled={isRunningTests}
-              >
-                Test {endpoint.name}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* Test Results */}
+      ) : (
         <div className="space-y-6">
-          <h2 className="text-xl font-semibold">Test Results</h2>
-          
-          {results.length === 0 ? (
-            <div className="bg-bg-light p-6 rounded-lg shadow-md text-center text-text-light">
-              No tests have been run yet. Click one of the test buttons above to start.
+          <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-green-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-green-700">API connection successful!</p>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {results.map((result, index) => {
-                const endpointName = endpoints.find(e => e.path === result.endpoint)?.name || result.endpoint;
-                
-                return (
-                  <div 
-                    key={index}
-                    className={`bg-bg-light rounded-lg shadow-md overflow-hidden ${
-                      result.status === 'success' ? 'border-l-4 border-green-500' :
-                      result.status === 'error' ? 'border-l-4 border-red-500' : ''
-                    }`}
-                  >
-                    <div 
-                      className="p-4 flex justify-between items-center cursor-pointer"
-                      onClick={() => toggleExpand(result.endpoint)}
-                    >
-                      <div className="flex items-center space-x-2">
-                        {result.status === 'pending' && (
-                          <div className="w-4 h-4 rounded-full border-2 border-t-transparent border-blue-600 animate-spin"></div>
-                        )}
-                        {result.status === 'success' && (
-                          <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                          </svg>
-                        )}
-                        {result.status === 'error' && (
-                          <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                          </svg>
-                        )}
-                        <span className="font-medium">{endpointName}</span>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        {result.duration && (
-                          <span className="text-sm text-text-light">
-                            {result.duration}ms
-                          </span>
-                        )}
-                        <button className="text-text-light p-1 focus:outline-none">
-                          {expandedResults[result.endpoint] ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"></path>
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                          )}
-                        </button>
-                      </div>
+          </div>
+
+          <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg font-medium text-gray-900">API Settings</h3>
+              <div className="mt-4 space-y-2">
+                {apiSettings ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">API Host</p>
+                      <p className="mt-1 text-sm text-gray-900">{apiSettings.apiHost}</p>
                     </div>
-                    
-                    {expandedResults[result.endpoint] && (
-                      <div className="p-4 border-t border-border-color bg-white">
-                        {result.error && (
-                          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-800">
-                            {result.error}
-                          </div>
-                        )}
-                        
-                        <div className="font-mono text-sm overflow-x-auto bg-gray-50 p-4 rounded">
-                          <pre className="whitespace-pre">{formatJson(result.data)}</pre>
-                        </div>
-                      </div>
-                    )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">API Version</p>
+                      <p className="mt-1 text-sm text-gray-900">{apiSettings.apiVersion}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-500">Debug Mode</p>
+                      <p className="mt-1 text-sm text-gray-900">{apiSettings.debugMode ? 'Enabled' : 'Disabled'}</p>
+                    </div>
                   </div>
-                );
-              })}
+                ) : (
+                  <p className="text-sm text-gray-500">API settings not available</p>
+                )}
+              </div>
             </div>
-          )}
+          </div>
+
+          <div className="bg-white shadow rounded-lg overflow-hidden mb-6">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg font-medium text-gray-900">Headers from API</h3>
+              <div className="mt-4">
+                {Object.keys(apiHeaders).length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(apiHeaders).map(([key, value]) => (
+                      <div key={key}>
+                        <p className="text-sm font-medium text-gray-500">{key}</p>
+                        <p className="mt-1 text-sm text-gray-900">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">No headers available</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white shadow rounded-lg overflow-hidden">
+            <div className="px-4 py-5 sm:p-6">
+              <h3 className="text-lg font-medium text-gray-900">API Response</h3>
+              <div className="mt-4">
+                <div className="bg-gray-100 rounded p-4 overflow-auto max-h-96">
+                  <pre className="text-xs">
+                    {JSON.stringify(apiStatus, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </Layout>
+      )}
+    </div>
   );
 }
